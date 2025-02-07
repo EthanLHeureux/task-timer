@@ -1,7 +1,6 @@
 import click
 import time
 import csv
-import os
  
 
 @click.command()
