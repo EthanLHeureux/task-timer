@@ -1,18 +1,44 @@
+"""
+__main__.py
+Author: Ethan L'Heureux
+Date: 04 02 2025
+
+Description:
+This program is a command-line task timer that allows users to create, 
+start, stop, delete, list and search time spent on tasks. It stores task data in 
+a CSV file which can be exportd.
+
+Usage:
+- Run the script using 'uv run task-timer' and enter commands as prompted.
+- Type '--help' for list of commands
+- Type 'exit' to quit the program.
+"""
+
 import click
-import time
 import csv
- 
+from datetime import datetime
 
-@click.command()
+
 def main():
-    """This is my main cli."""
+    """Main loop."""
 
-    click.echo("How may I Help:\n")
+    click.echo("\nHow may I help? Type '--help' for a list of commands and 'exit' to leave application:")
 
-    idea = str(input())
+    while True:
+        click.echo("")
+        idea = input().lower()
+        if idea == "exit":
+            click.echo("\nGoodbye!")
+            break
+        tasker(idea)
+
+
+def tasker(idea):
+    """ List of functions to execute. """
+
     if idea == 'create':
         create()
-    if idea == 'start':
+    elif idea == 'start':
         start()
     elif idea == 'stop':
         stop()
@@ -22,96 +48,114 @@ def main():
         delete()
     elif idea == 'list_tasks':
         list_tasks()
-    elif idea == 'export_timeSheet':
-        export_timeSheet()
+    elif idea == 'export_csv':
+        export_csv()
+    elif idea == '--help':
+        get_help()
     else:
-        click.echo("Sorry command does not exist,\n use cmd '--help' for list of commands")
+        click.echo("Sorry command does not exist,\nuse cmd '--help' for list of commands")
+    return False
 
 
+def get_help():
+    """Displays a help menu with available commands."""
 
-@click.command()
+    help_msg = """
+    Available Commands:
+    -------------------
+    create      - Create a new task.
+    start       - Start tracking time for a task.
+    stop        - Stop a task and show time spent.
+    time_of     - Show time spent on a specific task.
+    delete      - Delete a task.
+    list_tasks  - List all tasks and their time spent.
+    export_csv  - Export tasks to a CSV file.
+    exit        - Quit the application.
+    """
+    click.echo(help_msg)
+
+
 def create():
     """
     Creates a new task in the CSV file if it doesn't already exist. 
     Prompts the user for a task name and adds it with an initial time of '00'.
     """
 
+    task_exists = False
 
-    click.echo("\nName of  Task?\n")
+    click.echo("\nName of Task?")
     taskName = input()
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
-        rows = list(reader)
 
-        for row in rows:
+        for row in reader:
 
             if row[0] == taskName:
-                click.echo("Already exists.")
+                click.echo("\nAlready exists.")
+                task_exists = True
                 break
-
-            else:
-                with open('task_list.csv', 'a', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow([taskName, "00"])
-                click.echo("Task Created.")
-
+        if not task_exists:
+            with open('task_list.csv', 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([taskName, "00"])
+            click.echo("\nTask Created " + str(datetime.now()) + ".")
 
 
-@click.command()
 def start():
     """
     Starts tracking time for a task by updating its time field. 
     If the task is found and not already started, it sets the current timestamp.
     """
 
-    click.echo("\nName of  Task?\n")
+    click.echo("\nName of  Task?")
     taskName = input()
+
+    updated_rows = []
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
-        rows = list(reader)
-        for row in rows:
+
+        for row in reader:
             if (row[0] == taskName) and (row[1] == '00'):  
-                row[1] = str(time.time())
-                break  
+                row[1] = datetime.now().isoformat()
+                updated_rows.append(row)
+                click.echo("\nTask Started " + str(datetime.now()) + ".")
+                break
+            updated_rows.append(row)
         else:
             click.echo("\nTask Does Not Exist or time is already started.")
 
     with open('task_list.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerows(rows)
+        writer.writerows(updated_rows)
 
 
-
-@click.command()
 def stop():
     """
     Stops the timer for a task and calculates the total time spent. 
     Displays the total time and updates the task's record in the file.
     """
 
-    click.echo("\nName of  Task?\n")
+    click.echo("\nName of  Task?")
     taskName = input()
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
-        rows = list(reader)
 
-        for row in rows:
+        for row in reader:
         
             if (row[0] == taskName):  
-                total_time = float(time.time()) - float(row[1])
-                row[1] = total_time
-                click.echo("\nTotal time of task was: " + str(total_time))
+                start_time = datetime.fromisoformat(row[1])  # Convert stored time back to datetime
+                total_time = datetime.now() - start_time  # Calculate total time spent
+                row[1] = str(total_time.total_seconds())
+                click.echo("\nTotal time of task was: " + str(total_time.total_seconds()) + " on " + str(datetime.now()))
                 break
         
         else:
-            click.echo("Task Does Not Exist.")
+            click.echo("\nTask Does Not Exist.")
 
 
-
-@click.command()
 def delete():
     """
     Deletes a task from the CSV file based on its name. 
@@ -119,14 +163,13 @@ def delete():
     """
 
     rows_to_keep = []  
-    click.echo("\nName of  Task?\n")
+    click.echo("\nName of  Task?")
     taskName = input()
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
-        rows = list(reader)
 
-        for row in rows: 
+        for row in reader: 
         
             if row[0] != taskName: 
                 rows_to_keep.append(row)        
@@ -135,67 +178,69 @@ def delete():
         writer = csv.writer(file)
         writer.writerows(rows_to_keep)
     
-    click.echo("Task Stopped.")
+    click.echo("\nTask Deleted " + str(datetime.now()) + ".")
 
 
-
-@click.command()
 def time_of():
     """
     Displays the time spent on a task so far. 
     Calculates the time by subtracting the initial time from the current time.
     """
 
-    click.echo("\nName of  Task?\n")
+    click.echo("\nName of  Task?")
     taskName = input()
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
-        rows = list(reader)
 
-        for row in rows:
+        for row in reader:
 
             if (row[0] == taskName):  
-                total_time = float(time.time()) - float(row[1])
-                click.echo("\nTime of task so far is: " + str(total_time))
+                start_time = datetime.fromisoformat(row[1])  # Convert stored time back to datetime
+                total_time = datetime.now() - start_time
+                click.echo("\nTime of task so far is: " + str(total_time.total_seconds()))
                 break
         
         else:
-            click.echo("Task Does Not Exist.")
+            click.echo("\nTask Does Not Exist.")
 
 
-
-@click.command()
 def list_tasks():
     """
     Lists all tasks and the time spent on each task. 
     Displays the task name and the time difference between the current time and the stored start time.
     """
 
-    now = time.time()
+    now = datetime.now()
+
+    with open('task_list.csv', 'r', newline='') as file:
+        reader = csv.reader(file)
+
+        for row in reader:
+            if row[1] == "00":
+                click.echo("\nTask: " + row[0] + "\tTime spent on Task: 00" + "\t\tStarted:  " + row[1])
+            else:
+                start_time = datetime.fromisoformat(row[1]) 
+                total_time = now - start_time
+                click.echo("\nTask: " + row[0] + "\tTime spent on Task: " + str(total_time.total_seconds()) + "\t\tStarted:  " + row[1])
+
+
+def export_csv():
+    """
+    Exports the task data from 'task_list.csv' to 'export.csv'.
+    """
 
     with open('task_list.csv', 'r', newline='') as file:
         reader = csv.reader(file)
         rows = list(reader)
-
-        for row in rows:
-            click.echo("\nTask: " + row[0] + "\tTime spent on Task: " + str(now - float(row[1]) ) )
-
-
-
-
-@click.command()
-def export_timeSheet():
-    with open('task_list.csv', 'r', newline='') as file:
-        reader = csv.reader(file)
-        rows = list(reader)
-     
 
     with open('export.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(rows)
 
+    print("\nExported file at:\t /export.csv")
 
 
 if __name__ == '__main__':
     main()
+
